@@ -1,0 +1,103 @@
+# Build a container image, attest it with actions/attest, and save the
+# attestation bundles as files.
+
+name: Build, attest and record in Kosli
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    # A pull request from a fork gets a read-only token, which can neither push
+    # the image nor sign an attestation.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write      # push the image to ghcr.io
+      id-token: write      # actions/attest signs as this workflow
+      attestations: write  # actions/attest stores the attestations with GitHub
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # The attestations in this demo come from actions/attest, not buildx.
+          provenance: false
+          sbom: false
+
+      - name: Attest the image's provenance
+        id: provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+
+      - name: Generate an SBOM for the image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Attest the image's SBOM
+        id: sbom
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom.spdx.json
+
+      - name: Save the attestation bundles
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
+        run: |
+          mkdir bundles
+          cp "${PROVENANCE_BUNDLE}" bundles/provenance.sigstore.json
+          cp "${SBOM_BUNDLE}" bundles/sbom.sigstore.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: attestation-bundles
+          path: bundles/
+          if-no-files-found: error
+
+      - name: Summarise what was attested
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Attested \`${IMAGE}@${DIGEST}\`"
+            echo
+            echo "| Attestation | Predicate type | Rekor transparency log entry |"
+            echo "| --- | --- | --- |"
+            for kind in provenance sbom; do
+              jq -r --arg kind "${kind}" '
+                (.dsseEnvelope.payload | @base64d | fromjson | .predicateType) as $type
+                | .verificationMaterial.tlogEntries[0].logIndex as $index
+                | "| \($kind) | `\($type)` | [\($index)](https://search.sigstore.dev/?logIndex=\($index)) |"
+              ' "bundles/${kind}.sigstore.json"
+            done
+            echo
+            echo "The bundle files are in the \`attestation-bundles\` artifact of this run."
+          } >> "${GITHUB_STEP_SUMMARY}"
