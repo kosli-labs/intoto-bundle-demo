@@ -16,7 +16,7 @@ The `build` job:
 4. Saves the two Sigstore bundles as `provenance.sigstore.json` and `sbom.sigstore.json` in a workflow artifact named `attestation-bundles`.
 5. Writes the image digest and a link to each attestation's transparency log entry to the run summary.
 
-The `record` job, titled **Record in Kosli from the bundle files**, runs once Kosli is configured (see [Record in Kosli](#record-in-kosli)):
+The `record` job, titled **Record in Kosli from the bundle files**, then records them in the Kosli org `in-toto-demo`:
 
 1. Downloads the `attestation-bundles` artifact.
 2. Installs Kosli CLI v2.56.0.
@@ -45,20 +45,20 @@ Start from a workflow run on the [Actions page](https://github.com/kosli-labs/in
 - **The run summary.** It shows the image digest, the predicate type of each attestation, and a link to each one's Rekor entry. The `attestation-bundles` artifact at the bottom of the page holds the two bundle files.
 - **The repo's [Attestations page](https://github.com/kosli-labs/intoto-bundle-demo/attestations).** Each run adds two attestations for the image digest: one SLSA provenance, one SPDX SBOM.
 - **The Rekor transparency log entry.** This repo is public, so `actions/attest` signs with Sigstore's public instance and logs each signature in Rekor. Follow a link from the run summary to `search.sigstore.dev`. The entry's certificate names this workflow as the signer.
-- **The record in Kosli.** In the flow `intoto-bundle-demo`, open the trail named after the commit SHA. The artifact `image` carries the image digest as its fingerprint, with the commit and build URL from the provenance. The attestation `sbom` has the bundle file attached. Both are annotated `verified: true` with the `signer_identity`, `signer_issuer` and Rekor `log_index` that the CLI checked, and both link to the Rekor entry as the external URL `attestation`.
+- **The record in Kosli.** In the org `in-toto-demo`, in the flow `intoto-bundle-demo`, open the trail named after the commit SHA. The artifact `image` carries the image digest as its fingerprint, with the commit and build URL from the provenance. The attestation `sbom` has the bundle file attached. Both are annotated `verified: true` with the `signer_identity`, `signer_issuer` and Rekor `log_index` that the CLI checked, and both link to the Rekor entry as the external URL `attestation`.
 
 For a pull request, the commit SHA is that of the pull request's merge commit, which is what the workflow builds.
 
-## Record in Kosli
+## Kosli configuration
 
-Set both of these under **Settings › Secrets and variables › Actions**:
+The `record` job reads the Kosli org and API token from two settings under **Settings › Secrets and variables › Actions**. Both are set on this repo:
 
 | Kind | Name | Value |
 | --- | --- | --- |
 | Repository secret | `KOSLI_API_TOKEN` | An API token for the Kosli org |
-| Repository variable | `KOSLI_ORG` | The name of the Kosli org |
+| Repository variable | `KOSLI_ORG` | The name of the Kosli org: `in-toto-demo` |
 
-Until both are set, the `record` job is skipped and the workflow stays green: the image is still built, attested and its bundles saved.
+In a copy of this repo without them, the `record` job is skipped and the workflow stays green: the image is still built, attested and its bundles saved. Set both to record in your own Kosli org.
 
 ## Try a bundle yourself
 
