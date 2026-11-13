@@ -6,7 +6,7 @@ The job that records in Kosli has only the bundle files and the image's digest. 
 
 ## What the pipeline does
 
-The workflow is [`.github/workflows/build.yml`](.github/workflows/build.yml). It runs on every push to `main` and on pull requests from branches in this repo.
+The workflow is [`.github/workflows/build.yml`](.github/workflows/build.yml). It runs on every push to `main`, so a change is built, attested and recorded when it is merged.
 
 The `build` job:
 
@@ -47,7 +47,15 @@ Start from a workflow run on the [Actions page](https://github.com/kosli-labs/in
 - **The Rekor transparency log entry.** This repo is public, so `actions/attest` signs with Sigstore's public instance and logs each signature in Rekor. Follow a link from the run summary to `search.sigstore.dev`. The entry's certificate names this workflow as the signer.
 - **The record in Kosli.** In the org `in-toto-demo`, in the flow `intoto-bundle-demo`, open the trail named after the commit SHA. The artifact `image` carries the image digest as its fingerprint, with the commit and build URL from the provenance. The attestation `sbom` has the bundle file attached. Both are annotated `verified: true` with the `signer_identity`, `signer_issuer` and Rekor `log_index` that the CLI checked, and both link to the Rekor entry as the external URL `attestation`.
 
-For a pull request, the commit SHA is that of the pull request's merge commit, which is what the workflow builds.
+## Produce a new image digest
+
+Each merge to `main` builds a new image, so it gets a new digest. To show a change going through:
+
+1. Edit the greeting in [`main.go`](main.go), for example change `Hello from intoto-bundle-demo` to another message.
+2. Commit the change on a branch, open a pull request and merge it to `main`.
+3. Open the workflow run for the merge commit on the [Actions page](https://github.com/kosli-labs/intoto-bundle-demo/actions).
+
+The run summary shows the new digest. The [Attestations page](https://github.com/kosli-labs/intoto-bundle-demo/attestations) gains a provenance and an SBOM attestation for that digest, each with its own Rekor entry. In Kosli, the flow `intoto-bundle-demo` gains a trail named after the merge commit's SHA, holding the artifact `image` with the new digest as its fingerprint and its `sbom` attestation.
 
 ## Kosli configuration
 
