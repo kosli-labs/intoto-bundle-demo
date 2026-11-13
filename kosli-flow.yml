@@ -1,0 +1,9 @@
+# The Kosli flow template: each trail expects one artifact, the image, with an
+# SBOM attested for it.
+version: 1
+trail:
+  artifacts:
+    - name: image
+      attestations:
+        - name: sbom
+          type: sbom
