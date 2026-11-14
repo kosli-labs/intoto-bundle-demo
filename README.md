@@ -30,7 +30,7 @@ The `record` job, titled **Record in Kosli from the bundle files**, then records
      --bundle bundles/provenance.sigstore.json \
      --predicate-type provenance \
      --name image \
-     --certificate-identity-regexp '^https://github\.com/kosli-labs/intoto-bundle-demo/\.github/workflows/' \
+     --certificate-identity https://github.com/kosli-labs/intoto-bundle-demo/.github/workflows/build.yml@refs/heads/main \
      --certificate-oidc-issuer https://token.actions.githubusercontent.com
    ```
 
@@ -78,7 +78,7 @@ kosli attest in-toto \
   --bundle provenance.sigstore.json \
   --predicate-type provenance \
   --name image \
-  --certificate-identity-regexp '^https://github\.com/kosli-labs/intoto-bundle-demo/\.github/workflows/' \
+  --certificate-identity https://github.com/kosli-labs/intoto-bundle-demo/.github/workflows/build.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --flow intoto-bundle-demo \
   --trail <commit-sha> \
