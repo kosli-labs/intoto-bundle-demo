@@ -131,8 +131,10 @@ jobs:
       # Looks up the message, author and time of the commit the provenance names.
       KOSLI_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DIGEST: ${{ needs.build.outputs.digest }}
-      # The signer every bundle must have: a workflow in this repository.
-      SIGNER_IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/
+      # The signer every bundle must have: this workflow file, running on main.
+      # Pinning the exact file and ref means a bundle signed by another workflow,
+      # or by this one on another branch, fails verification and is not recorded.
+      SIGNER_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/build.yml@refs/heads/main
       SIGNER_ISSUER: https://token.actions.githubusercontent.com
     steps:
       - uses: actions/checkout@v7
@@ -164,7 +166,7 @@ jobs:
             --bundle bundles/provenance.sigstore.json \
             --predicate-type provenance \
             --name image \
-            --certificate-identity-regexp "${SIGNER_IDENTITY}" \
+            --certificate-identity "${SIGNER_IDENTITY}" \
             --certificate-oidc-issuer "${SIGNER_ISSUER}"
 
       - name: Record the SBOM bundle, as image.sbom
@@ -174,5 +176,5 @@ jobs:
             --bundle bundles/sbom.sigstore.json \
             --predicate-type sbom \
             --name image.sbom \
-            --certificate-identity-regexp "${SIGNER_IDENTITY}" \
+            --certificate-identity "${SIGNER_IDENTITY}" \
             --certificate-oidc-issuer "${SIGNER_ISSUER}"
